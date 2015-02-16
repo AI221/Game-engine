@@ -1,24 +1,27 @@
-os.loadAPI"game-engine/redirect"
-os.loadAPI"game-engine/game"
-map=game.loadMap("secondTown",70,70,colors.green,colors.black,"t")
-local obj = redirect.createRedirectBuffer()
-local native = term.current()
+os.loadAPI"game-engine/redirect"--load redirect
+os.loadAPI"game-engine/game"--load game
+map=game.loadMap("secondTown",70,70,colors.green,colors.black,"t")--[[
+Creates a map from the file "second town" with the offset of 70,70. Offset is needed because maps cannot
+render past X 1 Y 1, therefore the offset lets them not reach X 1 Y. The background will be green
+with black text displaying "t"]]
+local obj = redirect.createRedirectBuffer() -- create a buffer the for the player & objects
+local native = term.current() -- create a reference the native buffer
 local player = game.addPlayer(colors.orange,colors.black,"~",26,10,map,true)--[[
 Add a player with an orange body, and a black ~ who will be at X 26, y 10 on the screen, for the map map,
 and if he is trying to walk onto an area with no tile, don't let him.]]
 player:setPos(70,60)
 --because the map offset is 70,70, this puts him at 0,-10
 while true do
-  term.redirect(obj)
-  map.render.blit(player.x,player.y)
-  player:draw()
-  term.redirect(native)
-  obj.blit()
+  term.redirect(obj)--redirect to obj buffer
+  map.render.blit(player.x,player.y)--draw the map at the player's x and y coords
+  player:draw()--draw the player
+  term.redirect(native) -- go back to the native buffer
+  obj.blit()--draw the object buffer to the screen
   while true do
     local evt,k = os.pullEvent()
     if evt=="char" then
       if k=="w" then
-        player:moveUp()
+        player:moveUp()--if there's nothing up, then move up
         break
       elseif k=="s" then
         player:moveDown()
@@ -31,12 +34,12 @@ while true do
         break
       end
     elseif evt=="key" and k==41 then
-      game.openConsole()
+      game.openConsole()--open up the console
       break
     elseif evt=="key" and k==59 then 
-      game.quit()
+      game.quit()--calls anything game-engine needs to do on quit
       return 
     end
   end
 end
-game.quit()
+game.quit()--just in case
