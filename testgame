@@ -1,0 +1,42 @@
+os.loadAPI"game-engine/redirect"
+os.loadAPI"game-engine/game"
+map=game.loadMap("secondTown",70,70,colors.green,colors.black,"t")
+local obj = redirect.createRedirectBuffer()
+local native = term.current()
+local player = game.addPlayer(colors.orange,colors.black,"~",26,10,map,true)--[[
+Add a player with an orange body, and a black ~ who will be at X 26, y 10 on the screen, for the map map,
+and if he is trying to walk onto an area with no tile, don't let him.]]
+player:setPos(70,60)
+--because the map offset is 70,70, this puts him at 0,-10
+while true do
+  term.redirect(obj)
+  map.render.blit(player.x,player.y)
+  player:draw()
+  term.redirect(native)
+  obj.blit()
+  while true do
+    local evt,k = os.pullEvent()
+    if evt=="char" then
+      if k=="w" then
+        player:moveUp()
+        break
+      elseif k=="s" then
+        player:moveDown()
+        break
+      elseif k=="d" then
+        player:moveRight()
+        break
+      elseif k=="a" then
+        player:moveLeft()
+        break
+      end
+    elseif evt=="key" and k==41 then
+      game.openConsole()
+      break
+    elseif evt=="key" and k==59 then 
+      game.quit()
+      return 
+    end
+  end
+end
+game.quit()
