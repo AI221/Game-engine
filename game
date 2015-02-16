@@ -1,6 +1,5 @@
 --licensing is on bootup or:
---Game-Engine Copyright 2014 Jackson McNeill. Distribute any version, but show & keep this license
---end of license
+--Game-Engine Copyright 2014 Jackson McNeill, full license found in Game-Engine/license
 --[[
 Devmode:
 This will automatically enables noclip & trace, and disables printing to the console
@@ -492,8 +491,8 @@ local function cantCallDis(showLegal)
 	cPrint("V"..strVer)
 	if showLegal then
 		cPrint"Game-Engine Copyright 2014 Jackson McNeill."
-		cPrint"Distribute any version, but show & keep this"
-		cPrint"license"
+		cPrint"License in Game-Engine/license"
+		print()
 	end
 end
 cantCallDis(true)
