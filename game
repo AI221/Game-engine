@@ -8,7 +8,7 @@ Use this for easier developement. You can stop trace, noclip console prints with
 game.toggleTrace() , game.toggleNoclip() & game.toggleConsolePrint() respectavely.
 PLEASE DO NOT RELEASE MODIFIED VERSIONS OF GAME-ENGINE WITH THIS LEFT ON!!!
 ]]
-local devmode=true
+local devmode=false
 
 
 
