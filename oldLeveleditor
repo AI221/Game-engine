@@ -1,0 +1,664 @@
+--Game-Engine Temporary Level Designer
+--copyright 2014 Jackson McNeill
+--game engine load
+os.loadAPI"Game-Engine/redirect"
+os.loadAPI"Game-Engine/game"
+
+--Don't judge me off this work, it's not something
+--I planned on using more than once when I started
+--it. Will work fine until I get game-engine out of beta though
+
+
+
+--HEALTH WARNING: The following code may cause your eyes to bleed due to seeing something hideous
+
+
+
+
+term.setBackgroundColor(colors.green)
+--[[
+How this works:
+Using a paint-like interface, you will paint houses and nonsolids and backgrounds
+and all that stuff. This gets saved to a level file that is a serialized table that
+containts this stuff and is drawn by the game. From there things like position checks
+and all that neat stuff can happen. If you want to load a level, it will take that
+table and use it for the positions of stuff.
+also there will be an "event" system that can call certain functions when the character walks over them.
+]]
+--theoriginalbit's save format thingy:
+--not currently in use, but will be for Game-Map V2
+--everything from line 28 to when it says "endofstuff" is not under copyright by Jackson McNeill. You'll need to consult theOriginalBit about that part.
+--[[
+  log2 is used to reverse 2^x this is basic math I wont explain this
+--]]
+function rest()
+  os.queueEvent"noTooLongWithoutYielding"
+  os.pullEvent"noTooLongWithoutYielding"
+end
+local function log2( n )
+  return math.floor(math.log(n) / math.log(2))
+end
+
+local function packBoolean( nibble, bool )
+  return bit.bor(bit.blshift(nibble, 1), bool and 1 or 0)
+end
+
+local function unpackBoolean( byte, mask )
+  return bit.band(byte, mask) == mask
+end
+
+ function packByte( color, solid, cliff, water, battle )
+  return bit.bor(bit.blshift(packBoolean(packBoolean(packBoolean(packBoolean(0, solid), cliff), water), battle), 4), log2(color))
+end
+
+--# returns in the order color, solid, cliff, water, battle
+local function unpackByte( byte )
+  return 2^bit.band(byte, 0xF), unpackBoolean(byte, 128), unpackBoolean(byte, 64), unpackBoolean(byte, 32), unpackBoolean(byte, 16)
+end
+local function findLongest( t )
+  local l = -1 --if a row is less than -1, contact me. I'm damnsure it's impossible
+  for _,v in pairs( t ) do
+    l = math.max( l, #v )
+  end
+  return l
+end
+--zxcczxczxczxcxzxcasdassadZxzxASdasDFASDVXCCBVXdasdasdzZ
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--[[
+  Save the map to a file ----------------- THIS IS THE TROUBLESOME STUFF
+--]]
+function nsave(filename, map)
+  --make file"
+  if fs.exists(filename) then 
+    fs.delete(filename)
+  end
+  fs.makeDir(filename)
+  local stable={}
+  file = fs.open(filename.."/binary", "wb")
+  local min =table.maxn(map)
+  for q,w in pairs(map) do
+    min = math.min(min,q)
+    rest()
+  end
+  stable.starty = min
+  local lasty = min
+  local lastx =0 
+  local minx
+  for i,o in pairs(map) do
+    for q,w in pairs(map[i]) do
+      minx = math.min((minx or q-1),q)
+      rest()
+    end
+    rest()
+  end
+  stable.startx = minx
+  for i=min,table.maxn(map) do
+    if map[i] then
+      lastx = minx
+      for p=1,(i-lasty) do --2 times
+        file.write(240)
+      end    
+      lasty = i
+      for o=minx,table.maxn(map[i]) do
+        if map[i][o] then
+          _,y = term.getCursorPos()--deb
+          for p=1,(o-lastx)-1 do --1 times
+            file.write(224)
+          end
+          lastx = o --5
+          file.write(packByte(map[i][o].c,map[i][o].s,map[i][o].e,map[i][o].w,map[i][o].p))
+          
+        end
+        rest()
+      end
+      rest()
+    end
+  end--[1]
+  --# done w/ binary
+  file.close()
+  --write the table
+  local i = fs.open(filename.."/table","w")
+  i.write(textutils.serialize(stable))
+  i.close()
+end
+  
+--[[
+  Load the map to a file
+--]]
+function nload(filename)
+  --# the map
+  map = {}
+  local i = fs.open(filename.."/table","r")
+  stable = i.readAll()
+  i.close()
+  if not stable then 
+    return 
+  end 
+  stable = textutils.unserialize(stable)
+  if not stable then 
+    return 
+  end 
+
+  --# open the file in binary read mode
+  local file = fs.open(filename.."/binary", "rb")
+  if not file then 
+    return 
+  end 
+  --# read the width and height
+  --local height = file.read()
+  --local width = file.read()
+  --# tracking information, `bc` is the number of bytes we've read
+  row, col = stable.starty,stable.startx+1
+  --# read the file, 1 byte at a time
+  while true do
+    local byte = file.read()
+    if not byte then
+      break
+    end
+    unpacked = {unpackByte(byte)}
+    if unpacked[1] == 1 and unpacked[2] and unpacked[3] and unpacked[4] and unpacked[5] then--white, true on all, which is a newline thingy
+      row = row+1
+      col = stable.startx
+    elseif unpacked[1] == 1 and unpacked[2] and unpacked[3] and unpacked[4] and not unpacked[5] then
+      --col increase done for us
+    else
+      map[row] = map[row] or {}
+      map[row][col] = {}
+
+      --# unpack the byte into the row/column
+      --print(textutils.serialize(unpacked))------------------------
+      --sleep(0.5) -----------------------------
+      map[row][col].c = unpacked[1]
+      map[row][col].s = unpacked[2]
+      map[row][col].e = unpacked[3]
+      map[row][col].w = unpacked[4]
+      map[row][col].p = unpacked[5]
+    end
+    --# increment, we've read the byte
+    --col increasement
+    col=col+1
+    --print(textutils.serialize({colors.white,true,true,true,true}))
+    rest()
+  end
+  --sleep(10)
+  --# return the map and close the file, file.close returns nil, so you wont get a value from this
+  --use my shitty system
+  currentMap = map
+  return map, file.close()
+end
+--endofstuff                                    THIS IS THE END OF THE TROUBLESOME STUFF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--ill make my own meathod in the real game but for the level editor this is fine
+--maybe i wont, whatevs.
+--my own code:
+function packEntireMap()--well c&p some of the code used to draw
+  condensedMap={}
+  condensedStrings={}
+  for y,x in pairs(currentMap) do--for how many Y coords there are
+    if not condensedMap[y] then
+      condensedMap[y]={}
+    end
+    if not condensedStrings[y] then
+      condensedStrings[y]=""
+    end
+    --find the last x value
+    for u,i in pairs(currentMap[y]) do
+      lastX=u
+    end
+    for c,v in pairs(currentMap[y]) do
+      if not condensedMap[y][c] then
+        condensedMap[y][c]={}
+      end
+
+
+      --tempbugfix
+      currentMap[y][c]["e"] = false
+      currentMap[y][c]["w"] = false
+      currentMap[y][c]["g"] = false
+
+      --norm
+      condensedMap[y][c]=packByte(currentMap[y][c]["c"],currentMap[y][c]["s"],currentMap[y][c]["e"],currentMap[y][c]["w"],currentMap[y][c]["g"])
+      for i=2,c-#condensedStrings[y] do --will make the difference between the last x value and the current minus one then after this loop it will write the byte.
+        condensedStrings[y]=condensedStrings[y].." "
+      end
+      condensedStrings[y]= condensedStrings[y]..condensedMap[y][c]
+    end
+  end
+end
+--do varios stuff. We'll pretend this is a function for no reason at all.
+  --load apis:
+  if not redirect then
+    os.loadAPI("redirect")
+  end
+  --vars set:
+  buttons={}
+  if not currentMap then--incase it crashed they can resume progress
+    currentMap={}
+  end
+  scrollx=0 scrolly=0
+  --end
+function exersizeButtons()
+  os.queueEvent("mouse_click",1,46)--solid
+  os.queueEvent("mouse_click",8,50)--no event
+  os.queueEvent("char","n")
+  os.queueEvent("char","w")
+  os.queueEvent("char","a")
+  os.queueEvent("char","s")
+  os.queueEvent("char","d")
+end
+function drawUI()
+  --draw all paintstuffs
+  term.setBackgroundColor(colors.green)
+  paintutils.drawPixel(51,1,colors.white)
+  paintutils.drawPixel(51,2,colors.orange)
+  paintutils.drawPixel(51,3,colors.magenta)
+  paintutils.drawPixel(51,4,colors.lightBlue)
+  paintutils.drawPixel(51,5,colors.yellow)
+  paintutils.drawPixel(51,6,colors.lime)
+  paintutils.drawPixel(51,7,colors.pink)
+  paintutils.drawPixel(51,8,colors.gray)
+  paintutils.drawPixel(51,9,colors.lightGray)
+  paintutils.drawPixel(51,10,colors.cyan)
+  paintutils.drawPixel(51,11,colors.purple)
+  paintutils.drawPixel(51,12,colors.blue)
+  paintutils.drawPixel(51,13,colors.brown)
+  paintutils.drawPixel(51,14,colors.green)
+  paintutils.drawPixel(51,15,colors.red)
+  paintutils.drawPixel(51,16,colors.black)
+  --draw the textboxfield:
+  --we have 2 more spaces
+  term.setCursorPos(51,17)
+  term.setBackgroundColor(colors.white) term.setTextColor(colors.black)
+  term.write"X"
+  --draw the border line
+  paintutils.drawLine(50,1,50,19,colors.lightGray)
+  paintutils.drawLine(49,1,49,19,colors.lightGray)
+  paintutils.drawLine(48,1,48,19,colors.lightGray)
+  paintutils.drawLine(47,1,47,19,colors.lightGray)
+  paintutils.drawLine(46,1,46,19,colors.lightGray)
+  paintutils.drawLine(45,1,45,19,colors.yellow)
+  term.setBackgroundColor(colors.orange)
+  term.setTextColor(colors.blue)
+  solid=sideWriteB("solid",46,1)
+  txtBUT = sideWriteB("txT",46,7)
+  nonsolid=sideWriteB("asolid",48,1)
+  event=sideWriteB("spec",50,1)
+  noEvent=sideWriteB("no",50,7)
+  loadB=sideWriteB("load",47,10)
+  saveB=sideWriteB("save",49,10)
+  pokeBat = sideWriteB("sp",50,11)
+  --^^ now its a specialProp
+    paintutils.drawLine(46,18,51,18,colors.white)
+  term.setBackgroundColor(colors.green)
+end
+function sideWriteB(text2,x3,stay)--this makes a button and side writes
+  sideWrite(text2,x3,stay)
+  return makeButton(x3,stay,x3,stay+#text2)
+end
+function sideWrite(text,x,starty)--we'll be doing a lot of this
+  for i=1,#text do
+  	term.setCursorPos(x,starty+i-1)
+  	term.write(string.sub(text,i,i))
+  end
+end
+function makeButton(startx2,starty2,endx,endy)--we'll be a doing a bit of this aswell
+  buttons[#buttons+1] = {startx=startx2,starty=starty2,endx=endx,endy=endy}
+  return #buttons
+end
+function getButtonPress(x2,y)
+  for i=1,#buttons do
+  	if x2>=buttons[i].startx and y>=buttons[i].starty and y<=buttons[i].endy and x2<=buttons[i].endx then
+      return i
+  	end
+  end
+end
+function handleLevelEditor()
+  local events={os.pullEvent()}
+  if events[1] == "mouse_click" then
+    buttonPressed=getButtonPress(events[3],events[4])
+    if buttonPressed==solid then--set the stuffs to be solidz
+      currentSolid=true
+      paintutils.drawPixel(46,17,colors.green)
+    elseif buttonPressed==nonsolid then--set it to be nonsolid
+      currentSolid=nil
+      paintutils.drawPixel(46,17,colors.red)
+    elseif buttonPressed==event then--they want it to be an event
+      currentlyEvent=true
+      paintutils.drawPixel(47,17,colors.orange)
+    elseif buttonPressed==noEvent then--they no want event
+      currentlyEvent=nil
+      paintutils.drawPixel(47,17,colors.black)
+    elseif buttonPressed==saveB then
+      term.setBackgroundColor(colors.black)
+      save()
+    elseif buttonPressed==loadB then
+      load()
+    elseif buttonPressed==pokeBat then
+      battleT=true
+      paintutils.drawPixel(50,17,colors.green)
+    elseif buttonPressed==txtBUT then
+      --set cursor at textbox
+      term.setCursorPos(46,18)
+      currTextThing = string.sub(read(),1,1)
+      if currTextThing == "" then
+        currTextThing=nil
+      end
+    end
+  end
+  if events[1] == "mouse_click" and events[3] ==51 then--they clicked a color
+    if events[4] == 1 then
+      currentColor=colors.white
+    elseif events[4] == 2 then
+      currentColor=colors.orange
+    elseif events[4] == 3 then
+      currentColor=colors.magenta
+    elseif events[4]==4 then
+      currentColor=colors.lightBlue
+    elseif events[4]==5 then
+      currentColor=colors.yellow
+    elseif events[4] == 6 then
+      currentColor=colors.lime
+    elseif events[4]==7 then
+      currentColor=colors.pink
+    elseif events[4]==8 then
+      currentColor=colors.gray
+    elseif events[4] == 9 then
+      currentColor=colors.lightGray
+    elseif events[4] == 10 then
+      currentColor=colors.cyan
+    elseif events[4] ==11 then
+      currentColor=colors.purple
+    elseif events[4] ==12 then
+      currentColor=colors.blue
+    elseif events[4]==13 then
+      currentColor=colors.brown
+    elseif events[4]==14 then
+      currentColor=colors.green
+    elseif events[4] ==15 then
+      currentColor=colors.red
+    elseif events[4] ==16 then
+      currentColor=colors.black
+    elseif events[4] ==17 then--erasing
+      currentColor=nil
+    end
+    if currentColor then
+      paintutils.drawPixel(51,19,currentColor)
+    else
+      paintutils.drawPixel(51,19,colors.red)
+      term.setCursorPos(51,19)
+      write"E"
+    end
+  end
+  if events[1]=="mouse_click" and events[3]<45 or events[1]=="mouse_drag" and events[3]<45 then
+    doPaint(events)
+  end
+  if events[1]=="char" then
+    if events[2]=="s" then
+      scrolly=scrolly-1
+      term.setCursorPos(46,15) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+            write"     "
+      term.setCursorPos(46,15)
+      write(scrolly)--offset correction
+    elseif events[2]=="w" then
+      scrolly=scrolly+1
+      term.setCursorPos(46,15) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+            write"     "
+      term.setCursorPos(46,15)
+      write(scrolly)
+    elseif events[2]=="d" then
+      scrollx=scrollx-1
+      term.setCursorPos(46,16) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+            write"     "
+      term.setCursorPos(46,16)
+      write(scrollx)
+    elseif events[2]=="a"then 
+      scrollx=scrollx+1
+      term.setCursorPos(46,16) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+      write"     "
+      term.setCursorPos(46,16)
+      write(scrollx)
+    elseif events[2] == "c" then
+      currentCliff=true
+      paintutils.drawPixel(48,17,colors.brown)
+    elseif events[2]=="l" then
+      currentWater=true
+      paintutils.drawPixel(49,17,colors.blue)
+    elseif events[2]=="n" then
+      battleT = nil
+      currentCliff=nil
+      currentWater=nil
+      currTrain = nil
+      paintutils.drawLine(48,17,50,17,colors.black)
+      paintutils.drawPixel(49,19,colors.black)
+    elseif events[2]=="t" then
+      currTrain=true
+      paintutils.drawPixel(49,19,colors.green)
+    elseif events[2]=="x" then
+      events={os.pullEvent("mouse_click")}
+      term.setCursorPos(46,15) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+            write"     "
+      term.setCursorPos(46,15)
+      write(events[4]-scrolly)
+      term.setCursorPos(46,16) term.setBackgroundColor(colors.gray) term.setTextColor(colors.orange)
+            write"     "
+      term.setCursorPos(46,16)
+      write(events[3]-scrollx)
+      --temp 2 see if works
+      --currentMap[events[4]-scrolly][events[3]-scrollx]["c"]=colors.red
+    end
+    drawBoard()
+  end
+end
+function makeNPC()
+  --ask the user for their intro speach
+  term.setTextColor(colors.white)
+  term.setBackgroundColor(colors.black)
+  term.setCursorPos(1,17)
+  print"give char intro"
+  --at the gui textbox, we'll redraw the map and ignore damages to ui
+  charIn =read()
+  term.setCursorPos(1,17)
+  print"give char loss"
+  charLos=read()
+  term.setCursorPos(1,17)
+  print"give char victory"
+  charVict = read()
+  drawBoard()
+  --since it will overwrite spaces, let's get clever about this
+  charIn = string.gsub(charIn, " ","|")
+  charLos = string.gsub(charLos, " ","|")
+  charVict = string.gsub(charVict, " ","|")
+end
+
+function doPaint(events)
+  --we'll paint crap to the screen now
+  --each x coord is a table containting its y coords. This seems
+  --like the most sense making way and should give less worse
+  --tearing effects if any.
+  --y-table meathod, x values exist as tables holding data on the y table
+  if currentColor then--it's a color, not erasing
+    --make the table
+    if not currentMap[events[4]-scrolly] then
+      currentMap[events[4]-scrolly]={}
+    end        
+    currentMap[events[4]-scrolly][events[3]-scrollx]=nil    --remove current properties
+    if not currentMap[events[4]-scrolly][events[3]-scrollx] then
+      currentMap[events[4]-scrolly][events[3]-scrollx] = {}
+    end
+    currentMap[events[4]-scrolly][events[3]-scrollx]["c"]=currentColor--set the color
+    --draw the pixel
+    paintutils.drawPixel(events[3],events[4],currentColor)
+    if solid then--we want to be as space conserving as possible and write as little as possible.
+      currentMap[events[4]-scrolly][events[3]-scrollx]["s"]=currentSolid--if it's a solid, true, else, false
+    end
+    if currentCliff then
+      currentMap[events[4]-scrolly][events[3]-scrollx]["e"]=true
+    end
+    if currentWater then
+      currentMap[events[4]-scrolly][events[3]-scrollx]["w"]=true
+    end
+    if battleT then
+      currentMap[events[4]-scrolly][events[3]-scrollx]["p"] = true
+    end
+    if currTrain then
+      makeNPC()
+      currentMap[events[4]-scrolly][events[3]-scrollx]["i"]=charIn
+      currentMap[events[4]-scrolly][events[3]-scrollx]["f"]=charLos
+      currentMap[events[4]-scrolly][events[3]-scrollx]["v"]=charVict
+    end
+    --if there's an event we'll want to promp them. We'll use the ui textbox.
+    if currentlyEvent then
+      term.setCursorPos(46,18)
+      term.setTextColor(colors.black)term.setBackgroundColor(colors.white)
+      local input=io.read()
+      currentMap[events[4]-scrolly][events[3]-scrollx]["event"]=input--write it
+      --since we can't serialize type function, we leave it as a string.
+    end
+    if currTextThing then
+      currentMap[events[4]-scrolly][events[3]-scrollx]["t"]=currTextThing
+    end
+  elseif currentMap[events[4]-scrolly]--[[make sure it exists!]] then--we're erasing something
+    currentMap[events[4]-scrolly][events[3]-scrollx]=nil --we'll erase the entire X table
+    yammount=0
+    for _,i in pairs(currentMap[events[4]-scrolly]) do--get #of stuff in table 
+      yammount=yammount+1
+    end
+    if yammount ==0 then--if this Y coord is empty
+      currentMap[events[4]-scrolly]=nil--erase this Y coord
+    end
+    --refresh the screen the lazy way
+    drawBoard()
+  end
+end
+function oldsave()
+  term.setCursorPos(46,18)--gui textbox location
+  term.setBackgroundColor(colors.white) term.setTextColor(colors.black)
+  _=fs.open(read(),"w")
+  --we now remove whitespace
+  theSave = textutils.serialize(currentMap)
+  theSave=string.gsub(theSave,"\n","")
+  theSave=string.gsub(theSave," ","")
+  --sub back spaces in char text
+  theSave=string.gsub(theSave,"|"," ")
+  _.write(theSave)
+  _.close()
+  term.setCursorPos(46,18)
+  print"suc  "
+end
+--function save() oldsave() end
+function save() nsave(read(), currentMap) end
+function nosave()
+  --pack up each y coord
+  nLevelForm = {}
+  secondSave = {}
+  for i,o in pairs(currentMap) do--for how many y coords there are do
+    if not nLevelForm[i] then
+      nLevelForm[i] = {}
+    end
+    for k,l in pairs(currentMap[i]) do--for how many x coords in this y coord there are do
+      --convert the Y coord
+      -- in the order color, solid, cliff, water, battle
+      nLevelForm[i][k]={packByte(currentMap[i][k]["c"],currentMap[i][k]["s"],currentMap[i][k]["e"],currentMap[i][k]["w"],currentMap[i][k]["p"])}
+      if currentMap[i][k]["event"] then
+        if not secondSave[i] then
+          secondSave[i]={}
+        end
+        if not secondSave[i][k] then
+          secondSave[i][k] ={}
+        end
+        secondSave[i][k]["event"]=currentMap[i][k]["event"]
+      end
+    end
+  end
+end
+function load()
+  term.setCursorPos(48,18)
+  nload(read())
+end
+function oload()
+  drawBoard()
+  term.setCursorPos(48,18)
+  f=fs.open(read(),"r")
+  local t =f.readAll()
+  f.close()
+  t=string.gsub(t," ","|")
+  currentMap=textutils.unserialize(t)
+end
+
+function drawBoard()--draw what we've drawn
+  for i=1,19 do
+    paintutils.drawLine(1,i,44,i,colors.black)
+  end
+  for y,x in pairs(currentMap) do--for how many Y coords there are
+    for c,v in pairs(currentMap[y]) do
+      if c+scrollx < 45 then--so it doesn't do gui tearing
+        term.setBackgroundColor(currentMap[y][c]["c"])
+        if currentMap[y][c]["w"] == true then--
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"W"
+        elseif currentMap[y][c]["t"] then--
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write(currentMap[y][c]["t"])
+        elseif currentMap[y][c]["s"]==true then--
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"S"
+        elseif currentMap[y][c]["e"]==true then--
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"C"
+        elseif currentMap[y][c]["p"] then
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"G"
+        elseif currentMap[y][c]["v"] then--
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"T"
+        else
+          term.setCursorPos(c+scrollx,y+scrolly)
+          write"n"
+        end
+        --[[term.setCursorPos(c+scrollx,y+scrolly)
+        write" "]]
+      end
+    end
+  end
+end
+drawUI()
+drawBoard()
+t={...}
+if t[1] then
+  oload("levelsSaves/secondTownFinalVer")
+end
+while true do
+  handleLevelEditor()
+end
+
+	
