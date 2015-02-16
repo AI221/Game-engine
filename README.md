@@ -1,4 +1,5 @@
 # Game-engine
-See the LICENSE file
-See the forums or info on my Game-dev project(will not be out if this is a beta. also I probably won't update this, so just--if this is a beta, ignore this entirely) for doccumentation
-Requires GopherAtl's Redirect API to function properly.
+See the LICENSE file for lincensing information
+See the Wiki for doccumentation
+See the page on my site here: to see me rage about errors and frustration
+See the forum post here: for everything else.
