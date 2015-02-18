@@ -1,3 +1,4 @@
+term.redirect(term.native()) --bypass the windowAPI
 os.loadAPI"game-engine/redirect"--load redirect
 os.loadAPI"game-engine/game"--load game
 map=game.loadMap("secondTown",70,70,colors.green,colors.black,"t")--[[
