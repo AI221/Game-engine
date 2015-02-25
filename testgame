@@ -1,6 +1,26 @@
-term.redirect(term.native()) --bypass the windowAPI
-os.loadAPI"game-engine/redirect"--load redirect
-os.loadAPI"game-engine/game"--load game
+--This runs BEFORE THIS IS COMPILED:
+if not redirect then 
+	os.loadAPI"game-engine/redirect"--load redirect, if already loaded does not need reload
+end
+os.unloadAPI"game"
+os.loadAPI"game-engine/game"--load game, needs to reload b/c license info
+game.initialize(0,9,5,9,shell.getRunningProgram(),{})--[[
+launch the game for version 0.9.5, with no customized settings for the compiler
+Asks game-engine to act like it's using build 9.
+Game-engine will start compiling at "initialize compile r" minus the space.
+Note that a string or comment will STILL trigger it.
+However, "inialize compile r" minus the space will NOT trigger the compiler if written before game.initialize.
+]]
+game.clear()
+print"Thank you for trying out Game-engine!\nPlease keep in mind this is an early beta, and Game-Engine will be able to do SO much more\nCheck out the stuff in the game-engine folder to create levels! You may use this as a template."
+error()--exit
+--initialize compiler  --The compilation has started! You have to comment this out or the program will refuse to run.
+
+
+
+local window = term.current()--create a reference to a buffer we originate term
+term.redirect(term.native())--for optimization reasons, bypass the window API
+
 map=game.loadMap("secondTown",70,70,colors.green,colors.black,"t")--[[
 Creates a map from the file "second town" with the offset of 70,70. Offset is needed because maps cannot
 render past X 1 Y 1, therefore the offset lets them not reach X 1 Y. The background will be green
@@ -12,35 +32,44 @@ Add a player with an orange body, and a black ~ who will be at X 26, y 10 on the
 and if he is trying to walk onto an area with no tile, don't let him.]]
 player:setPos(70,60)
 --because the map offset is 70,70, this puts him at 0,-10
-while true do
-  term.redirect(obj)--redirect to obj buffer
-  map.render.blit(player.x,player.y)--draw the map at the player's x and y coords
-  player:draw()--draw the player
-  term.redirect(native) -- go back to the native buffer
-  obj.blit()--draw the object buffer to the screen
-  while true do
-    local evt,k = os.pullEvent()
-    if evt=="char" then
-      if k=="w" then
-        player:moveUp()--if there's nothing up, then move up
-        break
-      elseif k=="s" then
-        player:moveDown()
-        break
-      elseif k=="d" then
-        player:moveRight()
-        break
-      elseif k=="a" then
-        player:moveLeft()
-        break
-      end
-    elseif evt=="key" and k==41 then
-      game.openConsole()--open up the console
-      break
-    elseif evt=="key" and k==59 then 
-      game.quit()--calls anything game-engine needs to do on quit
-      return 
-    end
-  end
+function launch()
+	while true do
+		term.redirect(obj)--redirect to obj buffer
+		map.render.blit(player.x,player.y)--draw the map at the player's x and y coords
+		player:draw()--draw the player
+		term.redirect(native) -- go back to the native buffer
+		obj.blit()--draw the object buffer to the screen
+		while true do
+			local evt,k = os.pullEvent()
+			if evt=="char" then
+				if k=="w" then
+					player:moveUp()--if there's nothing up, then move up
+					break
+				elseif k=="s" then
+					player:moveDown()
+					break
+				elseif k=="d" then
+					player:moveRight()
+					break
+				elseif k=="a" then
+					player:moveLeft()
+					break
+				end
+			elseif evt=="key" and k==41 then
+				game.openConsole()--open up the console
+				break
+			elseif evt=="key" and k==59 then 
+				if window.redraw then 
+					term.redirect(window)
+					window.redraw()
+				end
+				game.quit()--calls anything game-engine needs to do on quit
+				return 
+			end
+		end
+	end
 end
+launch()
+term.redirect(window)
+window.redraw()
 game.quit()--just in case
