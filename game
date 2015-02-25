@@ -1,19 +1,30 @@
 --licensing is on bootup or:
 --Game-Engine Copyright 2014 Jackson McNeill, full license found in Game-Engine/license
 --[[
+///RELEASING MODIFIED VERSIONS\\\
+This is guide to make sure you don't do something stupid when releasing your modifed
+version of Game-Engine. Please see game-engine/license for details on Game-Engine's license.
+
 Devmode:
 This will automatically enables noclip & trace, and disables printing to the console
 (if you're a developer you should probably have the logs open in a log viewer)
 Use this for easier developement. You can stop trace, noclip console prints with
 game.toggleTrace() , game.toggleNoclip() & game.toggleConsolePrint() respectavely.
 PLEASE DO NOT RELEASE MODIFIED VERSIONS OF GAME-ENGINE WITH THIS LEFT ON!!!
+Variables:
+MAKE SURE you set gameModded to true
+Other things that should be changed:
+PLEASE change the auto-updater. If you do not, it may "upgrade" Game-engine to a newer version, that will not be modded.
+DO NOT CHANGE:
+The part where it shows the licensing on boot. This would violate game-engine's license, although for details on that you must refer to the actual license itself.
 ]]
-local devmode=false
+
+local devmode= true
 
 
 
 --[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = devmode --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
---[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] gameModded = nil numCmptbltyBreak = 0.9 numNewFtres = 5
+--[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] local gameModded = nil local numCmptbltyBreak = 0.9 local numNewFtres = 5
 local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble the string version out of the numbers
 --[[
 /////////////\\\\\\\\\\\\
@@ -123,6 +134,9 @@ end]]
 --------------------------
 ----[[Console System]]----
 --------------------------
+function getConsoleWhitespace()
+	return functionWhitespace
+end
 local function flushConsoleUi()
 	for i=1,12 do
 		paintutils.drawLine(1,i,51,i,colors.white)
@@ -280,12 +294,13 @@ function writeErrorToConsole(txt)
 	--write an error to console
 	--temp:
 	writeToConsole("[ERROR] "..txt)
+	return txt
 end
 function l(...)
 	writeToConsole(...)
 end 
 function e(...)
-	writeErrorToConsole(...)
+	return writeErrorToConsole(...)
 end
 function flushLogs()
 	local f=fs.open("console.log","w")
@@ -308,7 +323,7 @@ function fatalError(errormsg)
 	term.setTextColor(colors.red)
 	cPrint"FATAL ERROR"
 	print()
-	cPrint(errormsg)
+	print(errormsg)
 	cPrint"Game Engine could not continue running."
 	print()print()
 	cPrint"Press any key to continue."
@@ -429,8 +444,7 @@ function cWrite(txt)
 end
 function cPrint(txt)
 	traceEnter"cPrint"
-	cWrite(txt)
-	print()
+	cWrite(txt.."\n")
 	traceExit"cPrint"
 end
 function clear(x,y)
@@ -452,37 +466,67 @@ end
 -----[[Bootup]]-----
 --------------------
 --initialize function
-function initialize(version,build,fActbuild)
+function initialize(version,build,Nwftrs,fActbuild,program,compilerSettings)
 	traceEnter"initialize"
-	if inputCheck({version,build,fActbuild},{"number","number","number"},"initialize") then
+	if inputCheck({version,build,Nwftry,fActbuild,program,compilerSettings},{"number","number","number","number","string","table"},"initialize") then
 		traceExit"initialize"
 		return false 
-
 	end
-	version = version+(build/10)
-	actbuild = fActbuild
+
 	if math.floor(numCmptbltyBreak)~=version then 
 		term.clear()
 		term.setCursorPos(1,1)
-		error("This game was designed for Game-Engine version "..tostring(version).."."..tostring(fActbuild)..", and will not run on version "..strVer..". Please downgrade Game-Engine to a compatible version.")
+		fatalError("This game was designed for Game-Engine version "..tostring(version).."."..tostring(build).."."..tostring(Nwftrs)..", and will not run on version "..strVer..". Please downgrade Game-Engine to a compatible version.")
 	end 
 	--check for updates
 	
 
 
 
+	--compile:  
+	--local program = shell.getRunningProgram()--find program
+	--get the program
+	local f=fs.open(program,"r")
+	program = f.readAll()
+	f.close()
+	l(program)
+	--find where they initialize the game
+	local spot = string.find(program,"game.initialize")
+	l(spot)
+	--sub out the first bit
+	program=string.sub(program,string.find(program,"initialize compiler",spot)+20--[[19]],#program)
+	l(program)
+	--run it thru compiler
+	program=compileString(program)
+	l(program)
+	--load it
+	program,err=loadstring(program)
+	if type(program)~="function" then 
+		fatalError(err)--fatal error error()s out
+	end
+	local ok,err=pcall(program)
+	if (not ok) and err then 
+		fatalError(err)
+	end
+
 
 	traceExit"initialize"
 end
 function quit()
-	numCmptbltyBreak,devmode,strVer,numNewFtres,gameModded,consoleNL,useTraceCurrently,functionWhitespace,noclip,drawConsole,console = nil 
+	--error()numCmptbltyBreak,devmode,strVer,numNewFtres,gameModded,consoleNL,useTraceCurrently,functionWhitespace,noclip,drawConsole,console = nil 
 end
 --display powered by Game
 local function cantCallDis(showLegal)
 	clear()
 	cPrint"POWERED BY:"
 	--put in the game-engine logo thingy
-	local logo = {{0,0,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,},{0,512,512,512,512,2,2,2,2,2,2,2,2,2,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,2,2,2,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,2,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,2,512,512,512,512,512,},{0,512,512,512,512,2,2,2,2,2,2,2,2,2,512,512,512,512,},{0,0,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,},}
+	local logo
+	if term.isColor and not devmode then 
+		if term.isColor() then 
+			logo = {{0,0,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,},{0,512,512,512,512,2,2,2,2,2,2,2,2,2,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,512,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,2,2,2,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,2,512,512,512,512,512,},{512,512,512,512,512,2,512,512,512,512,512,512,512,2,512,512,512,512,512,},{0,512,512,512,512,2,2,2,2,2,2,2,2,2,512,512,512,512,},{0,0,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,},}
+		end 
+	end 
+	logo = logo or {{0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},{0,1,1,1,1,32768,32768,32768,32768,32768,32768,32768,32768,1,1,1,1,1,},{1,1,1,1,1,32768,1,1,1,1,1,1,1,32768,1,1,1,1,1,},{1,1,1,1,1,32768,1,1,1,1,1,1,1,1,1,1,1,1,1,},{1,1,1,1,1,32768,1,1,1,1,1,1,1,1,1,1,1,1,1,},{1,1,1,1,1,32768,1,1,1,1,1,1,32768,32768,1,1,1,1,1,},{1,1,1,1,1,32768,1,1,1,1,1,32768,1,32768,1,1,1,1,1,},{1,1,1,1,1,32768,32768,1,1,1,1,1,1,32768,1,1,1,1,1,},{0,1,1,1,1,1,32768,32768,32768,32768,32768,32768,32768,32768,1,1,1,1,},{0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},} 
 	--19 is width of img
 	paintutils.drawImage(logo,(term.getSize()-19)/2,5)
 	term.setBackgroundColor(colors.black)
@@ -1197,6 +1241,9 @@ function replace(str,start,enda,what)
 	traceExit"replace"
 	return firstHalf..what..secondHalf
 end
+function insert(str,pos,what)
+	return replace(str,pos,pos+1,what)
+end
 function removeCrap(strNoCrap,crap,endingThingy,fourthA)
 	endingThingy = endingThingy or crap
 	local start 
@@ -1208,6 +1255,9 @@ function removeCrap(strNoCrap,crap,endingThingy,fourthA)
 		end
 		--find end
 		enda = findEndOfCommand(strNoCrap,start+#crap,{endingThingy})
+		if endingThingy=="]]" then 
+			enda = enda+1
+		end
 		if not enda then 
 			break 
 		end
@@ -1216,31 +1266,207 @@ function removeCrap(strNoCrap,crap,endingThingy,fourthA)
 			whitespace=whitespace.." "
 		end 
 		strNoCrap=replace(strNoCrap,start-1,enda+1,whitespace)
-		l("s:"..strNoCrap.." sta: "..tostring(start).." end: "..tostring(enda))
+		--l("s:"..strNoCrap.." sta: "..tostring(start).." end: "..tostring(enda))
 	end
 	return strNoCrap
 end
-function findFunction(strNoCrap,str,start)
+function stopWhenFindS(str,find,spot,spot2)
+	local a =spot
+	while true do 
+		a,fake =stopWhenFind(str,find,a,spot2)
+		if a==1 then 
+			return 1,fake
+		end
+		if string.find(string.sub(str,a-1),"%a") and string.find(string.sub(str,a+3),"%a") then else 
+			return a 
+		end 
+	end 
+end 
+function stopWhenFind(str,find,spot,spot2) 
+	for i=spot,spot2,-1 do 
+		l("t: "..string.sub(str,i,i).." f: "..find)
+		if string.sub(str,i,i)==find then 
+			return i 
+		end 
+	end 
+	return 1,true
+end 
+function stringFindBackwards(str,find,spot,spot2,pat)
+
+		--new idea: find it starting spot2 then to spot, then work backwards
+		--from there
+		--find spot2
+		l("f "..tostring(spot2))
+		local s =string.find(str,find,spot2)
+		if not s then return false end
+		for i=s,spot2,-1 do 
+			if string.find(string.sub(str,i,i),find,1,pat) then
+				s=i
+			end 
+		end
+		return s
+
+
+		--[[
+		spot2 = spot2 or 1
+		for i=spot,spot2,-1 do 
+		l(i)
+		if string.find(str,find,i,i,pat) then --strfind does not work like this
+			local spot = i 
+			break 
+		end 
+	end --]]
+end 
+function cmdCheck(strNoCrap,str,start,pat)
+	if string.find(string.sub(strNoCrap,start-1,start-1),"%a",nil,pat) and string.find(string.sub(strNoCrap,start+#str,start+#str),"%a",nil,pat) or string.find(string.sub(strNoCrap,start-1,start-1),"%d",nil,pat) and string.find(string.sub(strNoCrap,start-1,start-1),"%d",nil,pat) then else 
+		return true
+	end 
+end 
+
+
+function findFunction(strNoCrap,start) --fix this so you can have stuff like function1
 	--find the next spot where they say "function"
-	local spot= string.find(strNoCrap,"function",start)
+	local spot= string.find(strNoCrap,"function",start) 
+	if not spot then return false end
+	l("F: "..tostring(spot))
+	if string.sub(strNoCrap,spot-1,spot-1)=="=" or string.sub(strNoCrap,spot-1,spot-1)==" "or string.sub(strNoCrap,spot-1,spot-1)=="\n" or string.sub(strNoCrap,spot-1,spot-1)==")" or string.sub(strNoCrap,spot-1,spot-1)=="}" or string.sub(strNoCrap,spot-1,spot-1)=="}" then 
+		l"maximum nope"
+		return
+	end 
+
 	--are they declaring this like: function x() or x=function()
-	local par = string.find(strNoCrap,"(",spot+8)
+	local par = string.find(strNoCrap,"(",start,spot+8)
+	l("P: "..tostring(par))
+	if not par then return false end
+	l("t "..tostring(spot))
+	local ospot = stringFindBackwards(strNoCrap,"%a",par,spot)
+	l(ospot)
+	--is it "function" ?
+	local name 
+	l(string.sub(strNoCrap,spot,spot+7))
+	if string.find(string.sub(strNoCrap,spot,par),"=")then 
+		l"back"
+		local space = stopWhenFind(strNoCrap," ",spot,1)
+		l(space)
+		--l(string.sub(strNoCrap,space,spot))
+		name = string.gsub(string.gsub(string.sub(strNoCrap,space,spot-1),"=","")," ","")
+		if not name then 
+			return e("[compiler] Tried to define function, did not specify variable! Near "..spot)
+		end 
 
 
+
+
+
+		--[[we go on another wild goose chase
+		local spot2 = stringFindBackwards(strNoCrap,"%a",ospot-10)------------------
+		
+		local space = stringFindBackwards(strNoCrap," ",spot2)
+		space = space or 1
+		local fName = string.sub(str,space+1,spot2)
+		if not fName then 
+			return e("[compiler] Couldn't find functions name near "..ospot)
+		end]]
+	else 
+		l"norm"
+		--find the entire viarable name
+		name = string.gsub(string.sub(strNoCrap,spot+9,par-1)," ","")--stringFindBackwards(strNoCrap,"%a",ospot-1)--------
+		l(name)
+		if not name then 
+			return e("[compiler] Tried to define function, did not specify variable! Near "..spot) 
+		end 
+		--[[find the next space
+		local space = stringFindBackwards(strNoCrap," ",spot2)
+		space=space or 1
+		local fName = string.sub(str,space+1,spot2)
+		if not fName then 
+			return e("[compiler] Couldn't find functions name near "..ospot)
+		end]]
+	end 
+	--find end of paranthesieaseisieieasiesz
+	local endP =string.find(strNoCrap,")",par)
+	--find end of function
+	local last
+	local a=endP
+	local m
+	while true do 
+		a=string.find(strNoCrap,"end",a+1)
+		if not a then 
+			return e"[compiler] Function "..name.." does not seem to have an end."
+		end 
+		if cmdCheck(strNoCrap,"end",a) then 
+			local spot,fake=stopWhenFindS(strNoCrap,"if",endP,a) 
+			local spot2,fake2=stopWhenFindS(strNoCrap,"while",endP,a) 
+			local spot3,fake3=stopWhenFindS(strNoCrap,"for",endP,a)
+			local spot4,fake4=stopWhenFindS(strNoCrap,"if",endP,a)  
+			if fake and fake2 and fake3 and fake4 then --we're at the last end
+				break
+			end
+			--okay, we're not quite there yet
+			--[[a=math.max(spot,math.max(spot2,math.max(spot3,spot4)))
+			if fake then else 
+				a=math.min(m,spot)
+			end 
+			if fake2 then else 
+				a=math.min(m,spot2)
+			end 
+			if fake3 then else 
+				a=math.min(m,spot3)
+			end 
+			if fake4 then else 
+				a=math.min(m,spot4)
+			end ]]
+		end 
+	end 
+	a={a}
+	local b =par
+	local nextEnd
+	while true do 
+		--find the next return
+		b=string.find(strNoCrap,"return",b+1)
+		if not b then 
+			break 
+		end 
+		if cmdCheck(strNoCrap,"return",b) then
+			nextEnd = b-1
+			while true do 
+				nextEnd=string.find(strNoCrap,"end",nextEnd+1)
+				if not nextEnd then 
+					break 
+				end 
+				if string.find(string.sub(strNoCrap,nextEnd-1,nextEnd-1),"%a") and string.find(string.sub(strNoCrap,nextEnd+3,nextEnd+3),"%a") then
+					break 
+				end 
+			end 
+			--if the return is right before the end of the function, we can't put our exit code after it.
+			if string.find(strNoCrap,"end")==a[1] then 
+				a[1]=b
+			end
+		end
+	end
+
+
+
+
+	--temp
+	return name,par,endP,a
 
 end
 
 function compileString(str,debugTable)
 	traceEnter"compileString"
-	--we want to add an extra new line at the end, just to be save
+	--we want to add an extra new line at the end, just to be safe
 	str=str.."\n"
 	--sub out all comments and strings in a seperate variable 
 	local strNoCrap = str 
 	--sub out \" and \' because they'd get in the way
 	strNoCrap=string.gsub(strNoCrap,'\\"',"  ")
 	strNoCrap=string.gsub(strNoCrap,"\\'","  ")
+	--turn tabs into spaces
+	strNoCrap=string.gsub(strNoCrap,"   "," ")
+	
 	strNoCrap =removeCrap(strNoCrap,'"')
-	strNoCrap = removeCrap(strNoCrap,"'")	
+	strNoCrap = removeCrap(strNoCrap,"'")   
 	--note the order we do this in. we don't want extra --'s floating arround.
 	strNoCrap = removeCrap(strNoCrap,"--[[","]]")
 	strNoCrap = removeCrap(strNoCrap,"[[","]]")
@@ -1249,7 +1475,37 @@ function compileString(str,debugTable)
 	if #strNoCrap ~= #str then 
 		e("Warning - String & commentless version of program is not the same size as the program itself! "..#strNoCrap.." vs. "..#str..". The compilation is EXTEMELY likely to fail.")
 	end
+	e(strNoCrap)
+	local functions = {}
+	functions[0]={}
+	functions[0][2]=1
+	repeat 
+		functions[#functions+1] = {findFunction(strNoCrap,functions[#functions][2])}
+	until not functions[#functions][1]
+	l("b:"..textutils.serialize(functions))
+	functions[#functions]=nil--clean the empty one up
+	functions[0]=nil--clean the starting thing up
+	l("a:"..textutils.serialize(functions))
+	--returned: name,par,endpar,returns/end
+	--move to the check functions thingy b/c this will break functions inside of functions
+	local added=0
+	for i=1,#functions do
+		str=insert(str,(functions[i][3]+1)+added,"game.traceEnter'"..functions[i][1].."'")--we do not need whitespace here as the ) is enough
+		added=added+17+#functions[i][1]--17 is the function thingy and then it's added to #name
+		for o=1,#functions[i][4] do
+			str=insert(str,(functions[i][4][o]-1)+added,"game.traceExit'"..functions[i][1].."'")
+			added=added+16+#functions[i][1]
+		end 
+	end 
+
+		--find functions
+	--[[while true do 
+		name,par,endP,endF = findFunction(strNoCrap,endF)
+
+
+
+	end ]]
 	--temp
 	traceExit"compileString"
-	return strNoCrap
+	return str
 end
