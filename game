@@ -19,7 +19,7 @@ DO NOT CHANGE:
 The part where it shows the licensing on boot. This would violate game-engine's license, although for details on that you must refer to the actual license itself.
 ]]
 
-local devmode= true
+local devmode= false
 
 
 
