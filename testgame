@@ -4,16 +4,16 @@ if not redirect then
 end
 os.unloadAPI"game"
 os.loadAPI"game-engine/game"--load game, needs to reload b/c license info
-game.initialize(0,9,5,9,shell.getRunningProgram(),{})--[[
+--[[game.initialize(0,9,5,9,shell.getRunningProgram(),{})
 launch the game for version 0.9.5, with no customized settings for the compiler
 Asks game-engine to act like it's using build 9.
 Game-engine will start compiling at "initialize compile r" minus the space.
 Note that a string or comment will STILL trigger it.
 However, "inialize compile r" minus the space will NOT trigger the compiler if written before game.initialize.
-]]
+
 game.clear()
 print"Thank you for trying out Game-engine!\nPlease keep in mind this is an early beta, and Game-Engine will be able to do SO much more\nCheck out the stuff in the game-engine folder to create levels! You may use this as a template."
-error()--exit
+error()--exit]]
 --initialize compiler  --The compilation has started! You have to comment this out or the program will refuse to run.
 
 
