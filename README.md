@@ -7,4 +7,4 @@ See the page on my site here: http://jacksonmcneill.ddns.net/game-engine.php to 
 
 See the forum post here: http://www.computercraft.info/forums2/index.php?/topic/22024-alpha-game-engine-map-based-engine-for-games/ for everything else.
 
-On a computer, do: pastebin run ngLftQ6u to install Game-Engine
+On a computer, do: pastebin run 6JU1nY50 4 update Game-Engine
