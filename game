@@ -19,13 +19,14 @@ DO NOT CHANGE:
 The part where it shows the licensing on boot. This would violate game-engine's license, although for details on that you must refer to the actual license itself.
 ]]
 
-local devmode= false
+local devmode= true
 
 
 
 --[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = devmode --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
 --[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] local gameModded = nil local numCmptbltyBreak = 0.9 local numNewFtres = 5
 local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble the string version out of the numbers
+local consoleLoc ="console.log"
 --[[
 /////////////\\\\\\\\\\\\
 /Table of contents:     \
@@ -51,6 +52,8 @@ local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble
 /[]                      
 /////////////\\\\\\\\\\\\
 ]]
+--open console file
+local consoleFile = fs.open(consoleLoc,"w")
 --~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
 --~~~[{DAMN THIS COMMENT IS FANCY}]~~~--
 --~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
@@ -269,8 +272,8 @@ function writeToConsole(txt)
 		writeErrorToConsole("writeToConsole - Expected String; got "..type(txt))
 		return false
 	end
-	if fs.getFreeSpace"/" < #txt+18 then
-		return "not enough space"
+	if fs.getFreeSpace"/" < #txt+3000 then
+		return "(not enough space) "..txt
 	end
 	--add the whitespace
 	txt=functionWhitespace..txt
@@ -286,9 +289,8 @@ function writeToConsole(txt)
 		console[#console+1]=string.sub(txt,(51*i)+1,(i+1)*51)
 	end
 	--console[#console+1]=txt
-	f=fs.open("console.log","w")
-	f.write(consoleNL)
-	f.close()
+	consoleFile.flush()
+	consoleFile.write(txt.."\n")
 end
 function writeErrorToConsole(txt)
 	--write an error to console
@@ -303,9 +305,7 @@ function e(...)
 	return writeErrorToConsole(...)
 end
 function flushLogs()
-	local f=fs.open("console.log","w")
-	f.writeLine""
-	f.close()
+	pcall(function() fs.delete(consoleLoc) end)
 end
 if not noConsoleClear then 
 	flushLogs()
@@ -514,6 +514,8 @@ function initialize(version,build,Nwftrs,fActbuild,program,compilerSettings)
 end
 function quit()
 	--error()numCmptbltyBreak,devmode,strVer,numNewFtres,gameModded,consoleNL,useTraceCurrently,functionWhitespace,noclip,drawConsole,console = nil 
+	--close console file 
+	consoleFile.close()
 end
 --display powered by Game
 local function cantCallDis(showLegal)
@@ -758,7 +760,7 @@ function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm)
 	local termX,termY=term.getSize()
 	for i=1,termY do
 		for k = 1,termX do
-			write(text)
+			term.write(text)
 		end
 		print()
 	end
@@ -770,27 +772,27 @@ function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm)
 				if currentMap[y][c]["w"] == true then
 					term.setCursorPos(c+scrollx,y+scrolly)
 					term.setTextColor(colors.cyan)
-					write"~"
+					term.write"~"
 				elseif currentMap[y][c]["e"]==true then
 					term.setCursorPos(c+scrollx,y+scrolly)
 					term.setTextColor(colors.black)
-					write"_"
+					term.write"_"
 				elseif currentMap[y][c]["b"]==true then--grass or cave
 					term.setCursorPos(c+scrollx,y+scrolly)
 					if currentMap[y][c]["c"] == colors.lime then
 						term.setTextColor(colors.green)
-						write"^"
+						term.write"^"
 					elseif currentMap[y][c]["c"]==colors.green then
 						term.setTextColor(colors.lime)
-						write"^"
+						term.write"^"
 					else
 						term.setTextColor(colors.black)
-						write","
+						term.write","
 					end
 				elseif currentMap[y][c]["v"] then
 					term.setCursorPos(c+scrollx,y+scrolly)
 					term.setTextColor(colors.black)
-					write">"
+					term.write">"
 				elseif currentMap[y][c]["event"] then--not in level editor
 					--handle events
 					--construct the arg handling
