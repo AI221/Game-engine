@@ -289,8 +289,9 @@ function writeToConsole(txt)
 		console[#console+1]=string.sub(txt,(51*i)+1,(i+1)*51)
 	end
 	--console[#console+1]=txt
-	consoleFile.flush()
+	
 	consoleFile.write(txt.."\n")
+	consoleFile.flush()
 end
 function writeErrorToConsole(txt)
 	--write an error to console
