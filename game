@@ -23,10 +23,11 @@ local devmode= true
 
 
 
---[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = devmode --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
+--[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = false --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
 --[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] local gameModded = nil local numCmptbltyBreak = 0.9 local numNewFtres = 5
 local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble the string version out of the numbers
 local consoleLoc ="console.log"
+local closed = false 
 --[[
 /////////////\\\\\\\\\\\\
 /Table of contents:     \
@@ -267,31 +268,33 @@ end
 function writeToConsole(txt)
 	--write to the console
 	--ensure correct syntax
-	txt = tostring(txt) or txt
-	if not type(txt) =="string" then
-		writeErrorToConsole("writeToConsole - Expected String; got "..type(txt))
-		return false
-	end
-	if fs.getFreeSpace"/" < #txt+3000 then
-		return "(not enough space) "..txt
-	end
-	--add the whitespace
-	txt=functionWhitespace..txt
-	--open up console directory
-	--[[if fs.exists"console.log" then
-		local f=fs.open("console.log","r")
-		log=f.readAll()
-		f.close()
-	end]]
-	--write it
-	consoleNL = consoleNL.."\n"..txt
-	for i=0,math.ceil(#txt/51)-1 do
-		console[#console+1]=string.sub(txt,(51*i)+1,(i+1)*51)
-	end
-	--console[#console+1]=txt
-	
-	consoleFile.write(txt.."\n")
-	consoleFile.flush()
+	if not closed then 
+		txt = tostring(txt) or txt
+		if not type(txt) =="string" then
+			writeErrorToConsole("writeToConsole - Expected String; got "..type(txt))
+			return false
+		end
+		if fs.getFreeSpace"/" < #txt+3000 then
+			return "(not enough space) "..txt
+		end
+		--add the whitespace
+		txt=functionWhitespace..txt
+		--open up console directory
+		--[[if fs.exists"console.log" then
+			local f=fs.open("console.log","r")
+			log=f.readAll()
+			f.close()
+		end]]
+		--write it
+		consoleNL = consoleNL.."\n"..txt
+		for i=0,math.ceil(#txt/51)-1 do
+			console[#console+1]=string.sub(txt,(51*i)+1,(i+1)*51)
+		end
+		--console[#console+1]=txt
+		--consoleFile.flush()
+		consoleFile.write(txt.."\n")
+		consoleFile.flush()
+	end 
 end
 function writeErrorToConsole(txt)
 	--write an error to console
@@ -517,6 +520,7 @@ function quit()
 	--error()numCmptbltyBreak,devmode,strVer,numNewFtres,gameModded,consoleNL,useTraceCurrently,functionWhitespace,noclip,drawConsole,console = nil 
 	--close console file 
 	consoleFile.close()
+	closed = true 
 end
 --display powered by Game
 local function cantCallDis(showLegal)
@@ -693,7 +697,7 @@ function load(filename)
 	traceExit"load"
 	return map, file.close()
 end
-function loadMap(map,scrollx,scrolly,bg,tc,text)
+function loadMap(map,scrollx,scrolly,bg,tc,text,mapw,maph)
 	traceEnter"loadMap"
 	if inputCheck({map,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMap") then
 		traceExit"loadMap"
@@ -720,7 +724,7 @@ end
 
 
 
-function loadMapOld(name, scrollx, scrolly,bg,tc,text)
+function loadMapOld(name, scrollx, scrolly,bg,tc,text,mapw,maph)--This is *NOT* depreciated
 	traceEnter"loadMapOld"
 	local normTerm = term.current()
 	if inputCheck({name,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMapOld") then
@@ -745,14 +749,16 @@ function loadMapOld(name, scrollx, scrolly,bg,tc,text)
 		map = name
 	end
 	traceExit"loadMapOld"
-	name = printMap(currentMap,scrollx, scrolly,bg,tc,text,normTerm)
+	name = printMap(currentMap,scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
 	name.location = name
 	return name 
 end
-function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm)
+function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
 	traceEnter"printMap"
+	mapw=mapw or 400
+	maph = maph or 400
 	--we've gotten the map part done, now we must draw it on a buffer
-	local buffer=redirect.createRedirectBuffer(400,400)
+	local buffer=redirect.createRedirectBuffer(mapw,maph)
 	term.redirect(buffer)
 
 	--set bg color
@@ -778,6 +784,10 @@ function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm)
 					term.setCursorPos(c+scrollx,y+scrolly)
 					term.setTextColor(colors.black)
 					term.write"_"
+				elseif currentMap[y][c]["t"] then--text rendering
+          			term.setCursorPos(c+scrollx,y+scrolly)
+          			term.setTextColor(currentMap[y][c]["o"] or colors.white)
+          			term.write(currentMap[y][c]["t"])
 				elseif currentMap[y][c]["b"]==true then--grass or cave
 					term.setCursorPos(c+scrollx,y+scrolly)
 					if currentMap[y][c]["c"] == colors.lime then
@@ -1005,7 +1015,7 @@ function checkButtons(buttonsTable, eventsTable)
 		end
 		if buttonsTable[i][3]==eventsTable[4]then--if on right y
 		 if eventsTable[3]>=buttonsTable[i][2] then--if enough x
-				if eventsTable[3]<=buttonsTable[i][2]+#buttonsTable[i][1] then --if not too much x
+				if eventsTable[3]<=buttonsTable[i][2]+#buttonsTable[i][1]-1 then --if not too much x
 					traceExit"checkButtons"
 					return buttonsTable[i][1], i --return buttons text and number
 				end
