@@ -26,7 +26,7 @@ local devmode= true
 --[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = false --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
 --[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] local gameModded = nil local numCmptbltyBreak = 0.9 local numNewFtres = 5
 local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble the string version out of the numbers
-local consoleLoc ="console.log"
+local consoleLoc ="log"
 local closed = false 
 --[[
 /////////////\\\\\\\\\\\\
@@ -54,7 +54,11 @@ local closed = false
 /////////////\\\\\\\\\\\\
 ]]
 --open console file
+
 local consoleFile = fs.open(consoleLoc,"w")
+
+
+
 --~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
 --~~~[{DAMN THIS COMMENT IS FANCY}]~~~--
 --~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
@@ -997,7 +1001,7 @@ function addButton(text,x,y,bgcolor,txtcolor,table)
 	return table 
 end
 
-function checkButtons(buttonsTable, eventsTable)
+function checkButtons(buttonsTable, eventsTable,relativeX,relativeY)
 	traceEnter"checkButtons"
 	if inputCheck({buttonsTable,eventsTable},{"table","table"},"checkButtons") then
 		traceExit"checkButtons"
@@ -1013,9 +1017,9 @@ function checkButtons(buttonsTable, eventsTable)
 			traceExit"checkButtons"
 			return false
 		end
-		if buttonsTable[i][3]==eventsTable[4]then--if on right y
-		 if eventsTable[3]>=buttonsTable[i][2] then--if enough x
-				if eventsTable[3]<=buttonsTable[i][2]+#buttonsTable[i][1]-1 then --if not too much x
+		if buttonsTable[i][3]+(relativeY or 0)==eventsTable[4]then--if on right y
+		 if eventsTable[3]>=buttonsTable[i][2]+(relativeX or 0) then--if enough x
+				if eventsTable[3]<=buttonsTable[i][2]+(relativeX or 0)+#buttonsTable[i][1]-1 then --if not too much x
 					traceExit"checkButtons"
 					return buttonsTable[i][1], i --return buttons text and number
 				end
@@ -1024,13 +1028,13 @@ function checkButtons(buttonsTable, eventsTable)
 	end
 	traceExit"checkButtons"
 end
-function drawButtons(table)
+function drawButtons(table,relativeX,relativeY)
 	traceEnter"drawButtons"
 	for i=1,#table do
-		term.setCursorPos(table[i][2],table[i][3])
+		term.setCursorPos(table[i][2]+(relativeX or 0),table[i][3]+(relativeY or 0))
 		term.setBackgroundColor(table[i][4])
 		term.setTextColor(table[i][5])
-		write(table[i][1])
+		term.write(table[i][1])
 	end
 	traceExit"drawButtons"
 end
