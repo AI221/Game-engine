@@ -23,10 +23,10 @@ local devmode= true
 
 
 
---[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = false --[[]]local noclip = devmode --[[]]local drawConsole = not devmode --[[]] local console ={}
+--[[DO NOT CHANGE THIS LINE]] --[[]] local functionWhitespace=""--[[]] local consoleNL = "\n" --[[]] local useTraceCurrently = false --[[]]local noclip = devmode --[[]]local drawConsole = true --[[]] local console ={}
 --[[SET gameModded TO TRUE IF CLIENT IS MODDED, AND CHANGE THE UPDATER]] local gameModded = nil local numCmptbltyBreak = 0.9 local numNewFtres = 5
 local strVer = tostring(numCmptbltyBreak).."."..tostring(numNewFtres) --assemble the string version out of the numbers
-local consoleLoc ="log"
+local consoleLoc ="console.log"
 local closed = false 
 --[[
 /////////////\\\\\\\\\\\\
@@ -180,10 +180,10 @@ local function consoleInput()
 	env["printError"]=writeErrorToConsole
 	env["textutils.slowPrint"]=writeToConsole
 	while true do
-		term.setCursorPos(1,13)
 		--refresh the bar
 		paintutils.drawLine(1,13,51,13,colors.white)
 		term.setTextColor(colors.black)
+		term.setCursorPos(1,13)
 		lastCommands[#lastCommands+1]=read(nil,lastCommands)
 		--check if the command is illegal
 		for i=1,#ignoreVars do
@@ -313,11 +313,12 @@ function e(...)
 	return writeErrorToConsole(...)
 end
 function flushLogs()
-	pcall(function() fs.delete(consoleLoc) end)
+	consoleNL = ""
+	console = {}
 end
-if not noConsoleClear then 
+--[[if not noConsoleClear then 
 	flushLogs()
-end
+end]]
 function fatalError(errormsg)
 	if not type(errormsg)=='string' then
 		errormsg = "None provided."
@@ -338,7 +339,7 @@ function fatalError(errormsg)
 	coroutine.yield"key"
 	term.setBackgroundColor(colors.black)
 	clear()
-	error("FATAL: "..errormsg)
+	error("FATAL: "..errormsg,0)
 end
 function traceEnter(txt)
 	if useTraceCurrently then
@@ -758,6 +759,7 @@ function loadMapOld(name, scrollx, scrolly,bg,tc,text,mapw,maph)--This is *NOT* 
 	return name 
 end
 function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
+
 	traceEnter"printMap"
 	mapw=mapw or 400
 	maph = maph or 400
@@ -1193,7 +1195,7 @@ function makeConfigBox(contents,x,y,lx,ly,bgcolor,txcolor)
 		end
 		local longestEntry = 1
 		for i=1+self.scrolly,self.ly+self.scrolly do
-			if #self.contents[i]> longestEntry then
+			if #(self.contents[i] or "")> longestEntry then
 				longestEntry=#self.contents[i]
 			end
 		end
