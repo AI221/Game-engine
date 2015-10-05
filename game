@@ -420,8 +420,12 @@ end
 function toggleTrace()
 	useTraceCurrently = not useTraceCurrently
 end
-function toggleNoclip()
-	noclip= not noclip
+function toggleNoclip(onoff)
+	if onoff==nil then 
+		noclip= not noclip
+	else 
+		noclip = onoff
+	end 
 end
 ----------------------------------
 -----[[Print Functions/misc]]-----
@@ -564,25 +568,88 @@ end
 -------------------------
 ----[[Map functions]]----
 -------------------------
---theoriginalbit's save thingy
---not mine
-function log2(n)
-	return math.floor(math.log(n) / math.log(2))
+local clrLk = {}
+for n=1,16 do
+	clrLk[2^(n-1)] = string.sub( "0123456789abcdef",n,n )
 end
 
-function packBoolean(nibble, bool)
-	return bit.bor(bit.blshift(nibble, 1), bool and 1 or 0)
+local function doRen(map,sx,sy,dx,dy,tx,ty)
+	sx,sy=(sx or 1)-1, (sy or 1 )-1
+	dx,dy=(dx or 1)-1, (dy or 1 )-1
+	local lnTxt,lnTxtCol,lnBg
+	local _x,_y = term.getSize()
+	tx,ty=tx or _x,ty or _y
+	local nilchar,nilcolor,nilbg = "","",""
+	for i=1,tx do 
+		nilchar=nilchar..(map.txt or "?")
+		nilcolor=nilcolor..(clrLk[map.tc] or "a")
+		nilbg=nilbg..(clrLk[map.bg] or "b")
+	end 
+		
+	for y=1,ty do --f = black
+		--l"start"
+		lnTxt,lnTxtCol,lnBg,nRenderX = "","",""
+		if map[y+sy] then 
+		--	l"y"
+			nRenderX = 1+dx
+			for x=1,tx do 
+		--		l"toX"
+				if map[y+sy][x+sx] then 
+		--			l"atw"
+					--paintutils.drawPixel(x,y,map[y+sy][x+sx]["c"])
+					lnTxt =lnTxt.. (map[y+sy][x+sx]["t"] or " ")
+					lnTxtCol = lnTxtCol..clrLk[(map[y+sy][x+sx]["o"] or colors.black)]
+					if type(map[y+sy][x+sx]["c"])=="number" then
+						lnBg=lnBg..clrLk[map[y+sy][x+sx]["c"]]
+					else 
+						lnBg=lnBg.."f"--black
+					end
+				elseif map.noTrans then  
+				--[[	lnTxt =lnTxt.. "~"
+					lnTxtCol = lnTxtCol.."f"
+					lnBg=lnBg.."f"]]
+					if lnTxt~="" then--blit the current contents 
+						term.setCursorPos(nRenderX,y+dy)
+						term.blit(lnTxt,lnTxtCol,lnBg)
+						lnTxt,lnTxtCol,lnBg = "","",""
+					end 
+					nRenderX = dx+x+1 
+				else --They want characters written to display when there is no pixel in a part of the map
+					lnTxt = lnTxt..(map.txt or "?")
+					lnTxtCol = lnTxtCol..(clrLk[map.tc] or "a")
+					lnBg = lnBg..(clrLk[map.bg] or "b")
+				end
+			end 
+			term.setCursorPos(nRenderX,y+dy)
+			term.blit(lnTxt,lnTxtCol,lnBg)
+		elseif not map.noTrans then  
+			term.setCursorPos(1+dx,y+dy)
+			term.blit(nilchar,nilcolor,nilbg)		
+		end 
+		
+	end 
+	--sleep(1)
+	--game.l"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+end 
+--theoriginalbit's save thingy
+--not mine, but I did comment the crap out of it, and update it to the bit32 library
+function log2(n)
+	return math.floor(math.log(n) / math.log(2)) -- Log2 is the opposite of 2^x 
+end
+
+function packBoolean(nibble, bool) -- A nibble is(up to, in this case) 4 bits, bool is true/false
+	return bit32.bor(bit32.lshift(nibble, 1), bool and 1 or 0)  -- Shift the bits that are already there left 1 and add a new boolean value(0 or 1)
 end
 
 function unpackBoolean(byte, mask)
-	return bit.band(byte, mask) == mask
+	return bit32.band(byte, mask) == mask --Return weather or the bit given is true or false. Also needs the bit positon
 end
 
 function packByte(color, solid, cliff, water, battle)
-	return bit.bor(bit.blshift(packBoolean(packBoolean(packBoolean(packBoolean(0, solid), cliff), water), battle), 4), log2(color))
+	return bit32.bor(bit32.lshift(packBoolean(packBoolean(packBoolean(packBoolean(0, solid), cliff), water), battle), 4), log2(color))--Pack 4 booleans and a color
 end
 function unpackByte( byte )
-	return 2^bit.band(byte, 0xF), unpackBoolean(byte, 128), unpackBoolean(byte, 64), unpackBoolean(byte, 32), unpackBoolean(byte, 16)
+	return 2^bit32.band(byte, 0xF), unpackBoolean(byte, 128), unpackBoolean(byte, 64), unpackBoolean(byte, 32), unpackBoolean(byte, 16)--Unpack 4 booleans and a color
 end
 --the rest is mine
 function save(filename, map)
@@ -640,7 +707,7 @@ function save(filename, map)
 	i.close()
 end
 
-function load(filename)
+function loadm(filename)
 	traceEnter"load"
 	if inputCheck({filename},{"string"},"load") then 
 		traceExit"load"
@@ -702,22 +769,31 @@ function load(filename)
 	traceExit"load"
 	return map, file.close()
 end
-function loadMap(map,scrollx,scrolly,bg,tc,text,mapw,maph)
+function loadMap(map,scrollx,scrolly,noTrans,bg,tc,text)
 	traceEnter"loadMap"
-	if inputCheck({map,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMap") then
+	--[[if inputCheck({map,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMap") then
 		traceExit"loadMap"
 		return false 
-	end
+	end]]
 	--load the map
-	map = load(map)
+	map = loadm(map)
 	if not map then 
 		writeErrorToConsole"[loadMap] Map didn't load"
 		traceExit"loadMap"
 		return false 
 	end
 	local normTerm = term.current()
-	map = printMap(map,scrollx,scrolly,bg,tc,text,normTerm)
-	map.location = map
+	--map = printMap(map,scrollx,scrolly,bg,tc,text,normTerm)
+	--map.location = map
+	--[[function map.render(x,y,xx,yy,tx,ty)
+		return doRen(map,x+scrollx,y+scrolly,xx,yy,tx,ty)
+	end ]]
+	map.render = doRen
+	map.noTrans = noTrans -- When set to true, will use the bg/tc colors instead of not rendering anything when there is no pixel in a space in the map.
+	map.bg = bg 
+	map.tc = tc 
+	map.txt = text 	
+	
 	traceExit"loadMap"
 	return map
 
@@ -729,14 +805,13 @@ end
 
 
 
-function loadMapOld(name, scrollx, scrolly,bg,tc,text,mapw,maph)--This is *NOT* depreciated
+function loadMapOld(name, scrollx, scrolly,noTrans,bg,tc,text)--This is *NOT* depreciated
 	traceEnter"loadMapOld"
 	local normTerm = term.current()
-	if inputCheck({name,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMapOld") then
+	--[[if inputCheck({name,scrollx,scrolly,bg,tc,text},{"string","number","number", "number", "number", "string"},"loadMapOld") then
 		traceExit"loadMapOld"
 		return false 
-	end
-	text = string.sub(text,1,1)
+	end]]
 	--ensure it is just 1 char
 	--load a map and drop the char in an x and y pos.
 	--get the map first
@@ -754,9 +829,17 @@ function loadMapOld(name, scrollx, scrolly,bg,tc,text,mapw,maph)--This is *NOT* 
 		map = name
 	end
 	traceExit"loadMapOld"
-	name = printMap(currentMap,scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
-	name.location = name
-	return name 
+	--name = printMap(currentMap,scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
+	--name.location = name
+	--[[tion currentMap.render(x,y,xx,yy,tx,ty)
+		return doRen(currentMap,x,y,xx,yy,tx,ty)
+	end]]
+	currentMap.render = doRen 
+	currentMap.noTrans=noTrans--explained in loadMap
+	currentMap.bg = bg 
+	currentMap.tc = tc 
+	currentMap.txt = text 
+	return currentMap  
 end
 function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
 
@@ -837,6 +920,7 @@ function printMap(currentMap, scrollx, scrolly,bg,tc,text,normTerm,mapw,maph)
 	traceExit"printMap"
 	return currentMap
 end
+
 --not done yet, uncomment when working on
 --[[local function intHandleMapEvents(map,events,player)
 	traceEnter"map:handleMapEvents"
@@ -853,11 +937,11 @@ end
 function collision(map,x,y,offsetx,offsety,noneIsCollision,ifNothing)
 	traceEnter"collision"
  -- writeToConsole("x:"..x.." y: "..y)-----------------------------------------------
-	if x==1 or y==1 then
+	--[[if x==1 or y==1 then
 		writeToConsole"Collision - Due to engine limitations(*cough* redirect API *cough*), you cannot render the map at less than y 1 x 1."
 		traceExit"collision"
 		return true
-	end
+	end]]
 	--noclipped?
 	if noclip then
 		traceExit"collision"
@@ -865,8 +949,8 @@ function collision(map,x,y,offsetx,offsety,noneIsCollision,ifNothing)
 	end
 	--minus x and y by offset
 
-	x=x-map["offsetx"]-1
-	y=y-map["offsety"]-1
+	x=x-(map["offsetx"] or 0)-1
+	y=y-(map["offsety"] or 0)-1
 	----------writeToConsole("2x:"..x.." y: "..y)-------------------------------------------------------
 	if type(map)=="table" and type(x)=="number" and type(y)=="number" then else
 		writeErrorToConsole("collision - Expected table number number, got "..type(map)..", "..type(x)..", "..type(y))
